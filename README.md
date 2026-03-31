@@ -1,2 +1,3 @@
-# 2322Project
-Project: Multi-thread Web Server
+# Multi-thread Web Server
+
+Project scaffold created. Implementation will be added next.
