@@ -1,14 +1,25 @@
 COMP2322 Multi-thread Web Server Test Commands
 
-These commands are placeholders for later verification once the server implementation is completed.
+Stage 3 parsing checks:
 
-Planned checks:
-- GET text file
-- GET image file
-- HEAD request
-- 404 File Not Found
-- 403 Forbidden
-- 400 Bad Request
-- 304 Not Modified
-- Connection: close
-- Connection: keep-alive
+1. Start the server:
+   python server.py
+
+2. Valid GET request:
+   curl -v http://127.0.0.1:8080/
+
+3. Valid HEAD request:
+   curl -I http://127.0.0.1:8080/
+
+4. Bad request with unsupported method:
+   curl -v -X POST http://127.0.0.1:8080/
+
+5. Bad request with malformed request line using telnet:
+   telnet 127.0.0.1 8080
+   Then type:
+   HELLO
+
+Expected stage 3 results:
+- valid GET returns temporary 200 OK
+- valid HEAD returns headers only
+- malformed or unsupported requests return 400 Bad Request

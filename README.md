@@ -4,16 +4,19 @@ This repository contains the coursework project for the COMP2322 Computer Networ
 
 ## Current Status
 
-The project has completed the scaffold stage and now includes the first runnable server stage. At this point, the program can:
+The project now includes the stage 3 parsing prototype. At this point, the program can:
 
 - parse command-line host and port arguments
 - create a TCP socket
 - bind and listen on the requested address
-- accept client connections
-- receive basic incoming data for inspection
-- close the connection safely
+- accept one client connection at a time
+- read the HTTP header section from the socket
+- parse the request line and request headers
+- accept `GET` and `HEAD`
+- return `400 Bad Request` for malformed requests
+- return a temporary `200 OK` text response for valid requests
 
-HTTP request parsing, file serving, response construction, logging, and multithreading will be added in later commits.
+Real file serving, multi-threading, `403`, `404`, `304`, logging, and persistent connections will be added in later commits.
 
 ## Project Structure
 
@@ -38,7 +41,7 @@ HTTP request parsing, file serving, response construction, logging, and multithr
 ## Directory Notes
 
 - `server.py`: main entry point for the web server.
-- `utils.py`: helper functions for HTTP parsing, MIME handling, time formatting, and path safety.
+- `utils.py`: helper functions for HTTP parsing, response formatting, and later file/path handling.
 - `logger_util.py`: logging helpers for request records.
 - `www/`: the web root that stores files served to clients.
 - `logs/`: runtime log output directory.
@@ -77,7 +80,27 @@ Start the server with named arguments:
 python server.py --host 127.0.0.1 --port 8080
 ```
 
-After the server starts, you can open a separate terminal and connect to it with a browser, `curl`, or `telnet`. In this stage, the server only accepts the connection and prints basic received data to the terminal.
+After the server starts, open a separate terminal and test the parsing stage with `curl`.
+
+Valid request example:
+
+```bash
+curl -v http://127.0.0.1:8080/
+```
+
+Valid `HEAD` example:
+
+```bash
+curl -I http://127.0.0.1:8080/
+```
+
+Bad request example using an unsupported method:
+
+```bash
+curl -v -X POST http://127.0.0.1:8080/
+```
+
+At this stage, a valid request only receives a temporary success response showing the parsed request details. Real static file responses will be added later.
 
 ## Sample Static Files
 
