@@ -1,0 +1,14 @@
+COMP2322 Multi-thread Web Server Test Commands
+
+These commands are placeholders for later verification once the server implementation is completed.
+
+Planned checks:
+- GET text file
+- GET image file
+- HEAD request
+- 404 File Not Found
+- 403 Forbidden
+- 400 Bad Request
+- 304 Not Modified
+- Connection: close
+- Connection: keep-alive
