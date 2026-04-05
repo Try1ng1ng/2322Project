@@ -1,10 +1,19 @@
 # COMP2322 Multi-thread Web Server
 
-This repository contains the coursework scaffold for the COMP2322 Computer Networking project. The goal of the project is to build a multi-threaded web server in Python using basic socket programming instead of high-level web frameworks.
+This repository contains the coursework project for the COMP2322 Computer Networking module. The goal is to build a multi-threaded web server in Python using basic socket programming instead of high-level web frameworks.
 
 ## Current Status
 
-This is the initial project skeleton stage. The repository already includes the required folders, sample static files, logging location, and report materials. The HTTP server logic will be implemented step by step in later commits.
+The project has completed the scaffold stage and now includes the first runnable server stage. At this point, the program can:
+
+- parse command-line host and port arguments
+- create a TCP socket
+- bind and listen on the requested address
+- accept client connections
+- receive basic incoming data for inspection
+- close the connection safely
+
+HTTP request parsing, file serving, response construction, logging, and multithreading will be added in later commits.
 
 ## Project Structure
 
@@ -23,8 +32,7 @@ This is the initial project skeleton stage. The repository already includes the 
 │  └─ curl_examples.txt
 ├─ README.md
 └─ report/
-   ├─ report_outline.md
-   └─ report_outline.pdf
+   └─ report_outline.md
 ```
 
 ## Directory Notes
@@ -41,13 +49,35 @@ This is the initial project skeleton stage. The repository already includes the 
 
 The final implementation will support:
 
-- Multi-threaded request handling using Python sockets and threads
+- multi-threaded request handling using Python sockets and threads
 - `GET` for text files and image files
 - `HEAD` requests
-- Response status handling for `200`, `400`, `403`, `404`, and `304`
+- response status handling for `200`, `400`, `403`, `404`, and `304`
 - `Last-Modified` and `If-Modified-Since`
 - `Connection: close` and `Connection: keep-alive`
-- Per-request logging to `logs/server.log`
+- per-request logging to `logs/server.log`
+
+## Run The Current Stage
+
+Start the server with the default host and port:
+
+```bash
+python server.py
+```
+
+Start the server with positional arguments:
+
+```bash
+python server.py 127.0.0.1 8080
+```
+
+Start the server with named arguments:
+
+```bash
+python server.py --host 127.0.0.1 --port 8080
+```
+
+After the server starts, you can open a separate terminal and connect to it with a browser, `curl`, or `telnet`. In this stage, the server only accepts the connection and prints basic received data to the terminal.
 
 ## Sample Static Files
 
@@ -59,5 +89,5 @@ The `www/` folder currently includes:
 
 ## Notes
 
-- The server implementation has not been completed yet.
+- The full HTTP server implementation has not been completed yet.
 - The project will be developed incrementally so each stage can be committed to GitHub clearly.
