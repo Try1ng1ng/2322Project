@@ -1,25 +1,34 @@
 COMP2322 Multi-thread Web Server Test Commands
 
-Stage 3 parsing checks:
+Stage 4 static file checks:
 
 1. Start the server:
    python server.py
 
-2. Valid GET request:
-   curl -v http://127.0.0.1:8080/
+2. GET the default page:
+   curl.exe -v http://127.0.0.1:8080/
 
-3. Valid HEAD request:
-   curl -I http://127.0.0.1:8080/
+3. GET a text file:
+   curl.exe -v http://127.0.0.1:8080/hello.txt
 
-4. Bad request with unsupported method:
-   curl -v -X POST http://127.0.0.1:8080/
+4. HEAD a text file:
+   curl.exe -I http://127.0.0.1:8080/hello.txt
 
-5. Bad request with malformed request line using telnet:
-   telnet 127.0.0.1 8080
-   Then type:
-   HELLO
+5. GET an image file:
+   curl.exe -o downloaded.jpg http://127.0.0.1:8080/image.jpg
 
-Expected stage 3 results:
-- valid GET returns temporary 200 OK
-- valid HEAD returns headers only
+6. Request a missing file:
+   curl.exe -v http://127.0.0.1:8080/notfound.txt
+
+7. Try a path traversal style request:
+   curl.exe -v http://127.0.0.1:8080/../server.py
+
+8. Send an unsupported method:
+   curl.exe -v -X POST http://127.0.0.1:8080/
+
+Expected stage 4 results:
+- existing files return 200 OK
+- HEAD returns headers only
+- missing files return 404 File Not Found
+- forbidden paths return 403 Forbidden
 - malformed or unsupported requests return 400 Bad Request

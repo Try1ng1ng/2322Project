@@ -4,19 +4,17 @@ This repository contains the coursework project for the COMP2322 Computer Networ
 
 ## Current Status
 
-The project now includes the stage 3 parsing prototype. At this point, the program can:
+The project now includes the stage 4 static file prototype. At this point, the program can:
 
 - parse command-line host and port arguments
 - create a TCP socket
 - bind and listen on the requested address
-- accept one client connection at a time
-- read the HTTP header section from the socket
-- parse the request line and request headers
-- accept `GET` and `HEAD`
-- return `400 Bad Request` for malformed requests
-- return a temporary `200 OK` text response for valid requests
+- parse `GET` and `HEAD` requests
+- serve files from `www/`
+- return text files and image files
+- return `200 OK`, `400 Bad Request`, `403 Forbidden`, and `404 File Not Found`
 
-Real file serving, multi-threading, `403`, `404`, `304`, logging, and persistent connections will be added in later commits.
+Multi-threading, `304 Not Modified`, persistent connections, and logging will be added in later commits.
 
 ## Project Structure
 
@@ -38,79 +36,35 @@ Real file serving, multi-threading, `403`, `404`, `304`, logging, and persistent
    └─ report_outline.md
 ```
 
-## Directory Notes
-
-- `server.py`: main entry point for the web server.
-- `utils.py`: helper functions for HTTP parsing, response formatting, and later file/path handling.
-- `logger_util.py`: logging helpers for request records.
-- `www/`: the web root that stores files served to clients.
-- `logs/`: runtime log output directory.
-- `tests/`: command examples and later verification notes.
-- `report/`: report outline materials for the final submission.
-
-## Planned Features
-
-The final implementation will support:
-
-- multi-threaded request handling using Python sockets and threads
-- `GET` for text files and image files
-- `HEAD` requests
-- response status handling for `200`, `400`, `403`, `404`, and `304`
-- `Last-Modified` and `If-Modified-Since`
-- `Connection: close` and `Connection: keep-alive`
-- per-request logging to `logs/server.log`
-
 ## Run The Current Stage
 
-Start the server with the default host and port:
+Start the server:
 
 ```bash
 python server.py
 ```
 
-Start the server with positional arguments:
-
-```bash
-python server.py 127.0.0.1 8080
-```
-
-Start the server with named arguments:
+Or specify host and port:
 
 ```bash
 python server.py --host 127.0.0.1 --port 8080
 ```
 
-After the server starts, open a separate terminal and test the parsing stage with `curl`.
+## Stage 4 Test Examples
 
-Valid request example:
-
-```bash
-curl -v http://127.0.0.1:8080/
-```
-
-Valid `HEAD` example:
+Use `curl.exe` in PowerShell to avoid the `curl` alias issue.
 
 ```bash
-curl -I http://127.0.0.1:8080/
+curl.exe -v http://127.0.0.1:8080/
+curl.exe -v http://127.0.0.1:8080/hello.txt
+curl.exe -I http://127.0.0.1:8080/hello.txt
+curl.exe -v http://127.0.0.1:8080/notfound.txt
+curl.exe -v http://127.0.0.1:8080/../server.py
+curl.exe -o downloaded.jpg http://127.0.0.1:8080/image.jpg
 ```
-
-Bad request example using an unsupported method:
-
-```bash
-curl -v -X POST http://127.0.0.1:8080/
-```
-
-At this stage, a valid request only receives a temporary success response showing the parsed request details. Real static file responses will be added later.
-
-## Sample Static Files
-
-The `www/` folder currently includes:
-
-- `index.html` for browser access
-- `hello.txt` for text file testing
-- `image.jpg` for image file testing
 
 ## Notes
 
-- The full HTTP server implementation has not been completed yet.
-- The project will be developed incrementally so each stage can be committed to GitHub clearly.
+- The web root is the `www/` directory.
+- Directory listing is disabled and returns `403 Forbidden`.
+- This stage still handles one request at a time. Multi-threading will be added later.

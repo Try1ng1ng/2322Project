@@ -30,6 +30,7 @@ def parse_args() -> argparse.Namespace:
     options such as ``--host`` and ``--port``. Named options take priority
     when both styles are provided.
     """
+
     parser = argparse.ArgumentParser(
         description="Start the COMP2322 web server."
     )
@@ -131,6 +132,7 @@ def handle_client(client_socket: socket.socket, client_address: tuple[str, int])
         print(f"Closed connection with {client_address[0]}:{client_address[1]}")
 
 
+ 
 def run_server(host: str, port: int) -> None:
     """Bind, listen, and accept client connections.
 
@@ -161,9 +163,9 @@ def run_server(host: str, port: int) -> None:
         server_socket.close()
         print("Server socket closed.")
 
-
+#program entry point for the current server stage.
 def main() -> None:
-    """Program entry point for the current server stage."""
+
     args = parse_args()
     run_server(args.host, args.port)
 
