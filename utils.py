@@ -3,6 +3,7 @@ from __future__ import annotations
 import mimetypes
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from email.utils import format_datetime, parsedate_to_datetime
 from pathlib import Path
 from urllib.parse import unquote
 
@@ -27,8 +28,17 @@ class HttpRequest:
     headers: dict[str, str]
 
 
-def format_http_date() -> str:
-    return datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
+def format_http_date(dt: datetime | None = None) -> str:
+    # Use the current UTC time when no value is provided.
+    if dt is None:
+        dt = datetime.now(timezone.utc)
+
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+
+    return format_datetime(dt, usegmt=True)
 
 
 def receive_http_request(client_socket) -> bytes:
@@ -144,6 +154,35 @@ def read_requested_file(file_path: Path) -> bytes:
     return file_path.read_bytes()
 
 
+def get_last_modified(file_path: Path) -> datetime:
+    # Drop sub-second precision because HTTP dates only use whole seconds.
+    modified_time = datetime.fromtimestamp(file_path.stat().st_mtime, tz=timezone.utc)
+    return modified_time.replace(microsecond=0)
+
+
+def parse_if_modified_since(value: str) -> datetime | None:
+    try:
+        parsed = parsedate_to_datetime(value)
+    except (TypeError, ValueError, IndexError):
+        return None
+
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc).replace(microsecond=0)
+
+
+def is_not_modified(file_path: Path, headers: dict[str, str]) -> bool:
+    if_modified_since = headers.get("if-modified-since")
+    if not if_modified_since:
+        return False
+
+    client_time = parse_if_modified_since(if_modified_since)
+    if client_time is None:
+        return False
+
+    return get_last_modified(file_path) <= client_time
+
+
 def build_http_response(
     status_code: int,
     reason_phrase: str,
@@ -167,7 +206,7 @@ def build_http_response(
     response_lines.extend(f"{key}: {value}" for key, value in headers.items())
     response_head = "\r\n".join(response_lines).encode("iso-8859-1") + b"\r\n\r\n"
 
-    # HEAD responses must not include a body.
-    if method == "HEAD":
+    # HEAD responses and 304 responses must not include a body.
+    if method == "HEAD" or status_code == 304:
         return response_head
     return response_head + body

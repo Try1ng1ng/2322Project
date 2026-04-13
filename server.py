@@ -1,21 +1,21 @@
-"""Stage 3 server entry point for basic HTTP request parsing.
-
-This stage extends the socket listener from stage 2 by adding:
-1. Request header reception up to the end of the HTTP header block.
-2. HTTP request-line parsing.
-3. Header parsing for fields such as Host and Connection.
-4. Method validation for GET and HEAD.
-5. A 400 Bad Request response for malformed requests.
-
-Later stages will replace the temporary success response with real file serving.
-"""
-
 from __future__ import annotations
 
 import argparse
 import socket
+import threading
 
-from utils import HttpParseError, build_http_response, parse_http_request, receive_http_request
+from utils import (
+    HttpParseError,
+    build_http_response,
+    format_http_date,
+    get_content_type,
+    get_last_modified,
+    is_not_modified,
+    parse_http_request,
+    read_requested_file,
+    receive_http_request,
+    resolve_request_path,
+)
 
 
 DEFAULT_HOST = "127.0.0.1"
@@ -24,16 +24,7 @@ BACKLOG = 5
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse command-line arguments for the server host and port.
-
-    The project requires support for both positional arguments and named
-    options such as ``--host`` and ``--port``. Named options take priority
-    when both styles are provided.
-    """
-
-    parser = argparse.ArgumentParser(
-        description="Start the COMP2322 web server."
-    )
+    parser = argparse.ArgumentParser(description="Start the COMP2322 web server.")
     parser.add_argument("host", nargs="?", default=DEFAULT_HOST, help="Host to bind.")
     parser.add_argument(
         "port",
@@ -42,130 +33,194 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_PORT,
         help="Port to bind.",
     )
-    parser.add_argument(
-        "--host",
-        dest="host_flag",
-        help="Host to bind. Overrides the positional host when provided.",
-    )
-    parser.add_argument(
-        "--port",
-        dest="port_flag",
-        type=int,
-        help="Port to bind. Overrides the positional port when provided.",
-    )
+    parser.add_argument("--host", dest="host_flag", help="Override positional host.")
+    parser.add_argument("--port", dest="port_flag", type=int, help="Override positional port.")
     args = parser.parse_args()
-    host = args.host_flag if args.host_flag is not None else args.host
-    port = args.port_flag if args.port_flag is not None else args.port
-    if not 1 <= port <= 65535:
+
+    # Let named options override positional values when both are provided.
+    args.host = args.host_flag if args.host_flag is not None else args.host
+    args.port = args.port_flag if args.port_flag is not None else args.port
+    if not 1 <= args.port <= 65535:
         parser.error("port must be between 1 and 65535")
-    args.host = host
-    args.port = port
     return args
 
 
 def handle_client(client_socket: socket.socket, client_address: tuple[str, int]) -> None:
-    # Handle one client connection for the current parsing stage.
-
-    # The server reads one HTTP request, parses it, then sends either:
-    # a temporary ``200 OK`` response when the request is valid
-    # a ``400 Bad Request`` response when the request is malformed
-   
-    print(f"Accepted connection from {client_address[0]}:{client_address[1]}")
+    # Each worker thread handles one client connection from start to finish.
+    print(
+        f"[{threading.current_thread().name}] Accepted connection from "
+        f"{client_address[0]}:{client_address[1]}"
+    )
 
     try:
-        # Avoid waiting forever if the client connects but sends nothing.
+        # Close idle connections quickly in this stage of the project.
         client_socket.settimeout(5)
         request_data = receive_http_request(client_socket)
-
         if not request_data:
             print(
-                f"Client {client_address[0]}:{client_address[1]} closed "
-                "the connection without sending data."
+                f"[{threading.current_thread().name}] Client "
+                f"{client_address[0]}:{client_address[1]} closed the connection "
+                "without sending data."
             )
             return
 
         print(
-            f"Received {len(request_data)} bytes from "
-            f"{client_address[0]}:{client_address[1]}"
+            f"[{threading.current_thread().name}] Received {len(request_data)} bytes "
+            f"from {client_address[0]}:{client_address[1]}"
         )
 
+        # Parse the HTTP request line and headers before choosing a response.
         request = parse_http_request(request_data)
         print(
-            "Parsed request: "
+            f"[{threading.current_thread().name}] Parsed request: "
             f"method={request.method}, path={request.path}, version={request.version}"
         )
 
-        # This is a temporary response for the parsing stage only.
-        body = (
-            "HTTP request parsed successfully.\n"
-            f"Method: {request.method}\n"
-            f"Path: {request.path}\n"
-            f"Version: {request.version}\n"
-        ).encode("utf-8")
+        try:
+            # Map the URL path to a safe location under the web root.
+            file_path = resolve_request_path(request.path)
+        except PermissionError as error:
+            body = b"403 Forbidden\nAccess to the requested resource is denied.\n"
+            response = build_http_response(
+                status_code=403,
+                reason_phrase="Forbidden",
+                body=body,
+                method=request.method,
+            )
+            client_socket.sendall(response)
+            print(
+                f"[{threading.current_thread().name}] Forbidden request from "
+                f"{client_address[0]}:{client_address[1]}: {error}"
+            )
+            return
+
+        # Directory listing is disabled for this project.
+        if file_path.is_dir():
+            body = b"403 Forbidden\nDirectory access is not allowed.\n"
+            response = build_http_response(
+                status_code=403,
+                reason_phrase="Forbidden",
+                body=body,
+                method=request.method,
+            )
+            client_socket.sendall(response)
+            print(
+                f"[{threading.current_thread().name}] Forbidden directory request: "
+                f"{request.path}"
+            )
+            return
+
+        # A valid path can still refer to a file that does not exist.
+        if not file_path.exists():
+            body = b"404 File Not Found\nThe requested file does not exist.\n"
+            response = build_http_response(
+                status_code=404,
+                reason_phrase="File Not Found",
+                body=body,
+                method=request.method,
+            )
+            client_socket.sendall(response)
+            print(
+                f"[{threading.current_thread().name}] File not found for path "
+                f"{request.path}"
+            )
+            return
+
+        last_modified = get_last_modified(file_path)
+        last_modified_header = format_http_date(last_modified)
+
+        # Return 304 when the client's cached copy is already up to date.
+        if is_not_modified(file_path, request.headers):
+            response = build_http_response(
+                status_code=304,
+                reason_phrase="Not Modified",
+                method=request.method,
+                extra_headers={
+                    "Last-Modified": last_modified_header,
+                    "Content-Length": "0",
+                },
+            )
+            client_socket.sendall(response)
+            print(
+                f"[{threading.current_thread().name}] Returned 304 Not Modified for "
+                f"{file_path.name}"
+            )
+            return
+
+        # Read the file as bytes so both text and image files are supported.
+        file_body = read_requested_file(file_path)
         response = build_http_response(
             status_code=200,
             reason_phrase="OK",
-            body=body,
+            body=file_body,
             method=request.method,
+            extra_headers={
+                "Content-Type": get_content_type(file_path),
+                "Content-Length": str(len(file_body)),
+                "Last-Modified": last_modified_header,
+            },
         )
         client_socket.sendall(response)
+        print(f"[{threading.current_thread().name}] Served file: {file_path.name}")
     except HttpParseError as error:
-        print(f"Bad request from {client_address[0]}:{client_address[1]}: {error}")
-        error_body = (
-            "400 Bad Request\n"
-            "The server could not understand the HTTP request.\n"
-        ).encode("utf-8")
+        # Unsupported methods or malformed requests are treated as 400 errors.
+        body = b"400 Bad Request\nThe server could not understand the HTTP request.\n"
         response = build_http_response(
             status_code=400,
             reason_phrase="Bad Request",
-            body=error_body,
+            body=body,
         )
         client_socket.sendall(response)
+        print(
+            f"[{threading.current_thread().name}] Bad request from "
+            f"{client_address[0]}:{client_address[1]}: {error}"
+        )
     except socket.timeout:
         print(
-            f"Timed out while waiting for data from "
-            f"{client_address[0]}:{client_address[1]}"
+            f"[{threading.current_thread().name}] Timed out while waiting for data "
+            f"from {client_address[0]}:{client_address[1]}"
         )
     finally:
-        # Close the client socket after this one-request interaction.
+        # Always release the client socket after the request is handled.
         client_socket.close()
-        print(f"Closed connection with {client_address[0]}:{client_address[1]}")
+        print(
+            f"[{threading.current_thread().name}] Closed connection with "
+            f"{client_address[0]}:{client_address[1]}"
+        )
 
 
- 
 def run_server(host: str, port: int) -> None:
-    """Bind, listen, and accept client connections.
-
-    At this project stage the server handles one HTTP request per connection.
-    The implementation is still single-threaded, because the threading logic
-    will be added in a later milestone.
-    """
-    # Create an IPv4 TCP socket for the server.
+    # Create the listening socket for incoming TCP connections.
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # Reuse the address so restarting the server is easier during development.
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
     try:
-        # Bind the socket to the chosen host and port, then start listening.
+        # Bind to the target address and start accepting connections.
         server_socket.bind((host, port))
         server_socket.listen(BACKLOG)
         print(f"Server listening on http://{host}:{port}")
         print("Press Ctrl+C to stop the server.")
 
         while True:
-            # Block until a client establishes a TCP connection.
             client_socket, client_address = server_socket.accept()
-            handle_client(client_socket, client_address)
+
+            # The main thread keeps accepting new clients while worker threads
+            # process individual connections in parallel.
+            worker = threading.Thread(
+                target=handle_client,
+                args=(client_socket, client_address),
+                daemon=True,
+            )
+            worker.start()
     except KeyboardInterrupt:
         print("\nServer shutdown requested by user.")
     finally:
-        # Always release the listening socket before the program exits.
+        # Close the listening socket when the server stops.
         server_socket.close()
         print("Server socket closed.")
 
-#program entry point for the current server stage.
-def main() -> None:
 
+def main() -> None:
     args = parse_args()
     run_server(args.host, args.port)
 
