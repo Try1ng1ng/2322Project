@@ -41,27 +41,25 @@ def format_http_date(dt: datetime | None = None) -> str:
     return format_datetime(dt, usegmt=True)
 
 
-def receive_http_request(client_socket) -> bytes:
-    chunks = []
-    total_size = 0
+def receive_http_request(client_socket, buffer: bytes = b"") -> tuple[bytes, bytes]:
+    request_data = buffer
 
     while True:
-        # Read the request in small chunks until the header section is complete.
-        chunk = client_socket.recv(4096)
-        if not chunk:
-            break
+        # Stop when one complete header block has been collected.
+        header_end = request_data.find(b"\r\n\r\n")
+        if header_end != -1:
+            end_index = header_end + 4
+            return request_data[:end_index], request_data[end_index:]
 
-        chunks.append(chunk)
-        total_size += len(chunk)
-        request_data = b"".join(chunks)
-
-        if b"\r\n\r\n" in request_data:
-            return request_data
-
-        if total_size > MAX_HEADER_BYTES:
+        if len(request_data) > MAX_HEADER_BYTES:
             raise HttpParseError("request headers are too large")
 
-    return b"".join(chunks)
+        # Read the next chunk from the same connection.
+        chunk = client_socket.recv(4096)
+        if not chunk:
+            return request_data, b""
+
+        request_data += chunk
 
 
 def parse_http_request(request_data: bytes) -> HttpRequest:
@@ -123,6 +121,17 @@ def parse_headers(header_lines: list[str]) -> dict[str, str]:
         headers[name] = value
 
     return headers
+
+
+def should_keep_alive(request: HttpRequest) -> bool:
+    connection_value = request.headers.get("connection", "").lower()
+    if request.version == "HTTP/1.1":
+        return connection_value != "close"
+    return connection_value == "keep-alive"
+
+
+def get_connection_header(keep_alive: bool) -> str:
+    return "keep-alive" if keep_alive else "close"
 
 
 def resolve_request_path(request_path: str) -> Path:

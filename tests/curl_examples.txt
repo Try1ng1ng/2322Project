@@ -1,39 +1,40 @@
 COMP2322 Multi-thread Web Server Test Commands
 
-Stage 6 cache and status checks:
+Stage 7 connection checks:
 
 1. Start the server:
    python server.py
 
-2. Get the file headers:
+2. Request with Connection: close
+   curl.exe -v -H "Connection: close" http://127.0.0.1:8080/hello.txt
+
+3. Request with Connection: keep-alive
+   curl.exe -v -H "Connection: keep-alive" http://127.0.0.1:8080/hello.txt
+
+4. Get the file headers:
    curl.exe -I http://127.0.0.1:8080/hello.txt
 
-3. Repeat the request with If-Modified-Since:
+5. Repeat the request with If-Modified-Since:
    curl.exe -v -H "If-Modified-Since: <Last-Modified value>" http://127.0.0.1:8080/hello.txt
 
-4. GET the default page:
-   curl.exe -v http://127.0.0.1:8080/
-
-5. GET a text file:
-   curl.exe -v http://127.0.0.1:8080/hello.txt
-
-6. GET an image file:
-   curl.exe -o downloaded.jpg http://127.0.0.1:8080/image.jpg
-
-7. Request a missing file:
+6. Request a missing file:
    curl.exe -v http://127.0.0.1:8080/notfound.txt
 
-8. Try a path traversal request:
+7. Try a path traversal request:
    curl.exe --path-as-is -v http://127.0.0.1:8080/../server.py
 
-9. Send an unsupported method:
+8. Send an unsupported method:
    curl.exe -v -X POST http://127.0.0.1:8080/
 
-10. Concurrency check:
-    Open multiple terminals and run several curl.exe requests at the same time.
-    Confirm that the server output shows different worker thread names.
+9. Concurrency check:
+   Open multiple terminals and run several curl.exe requests at the same time.
+   Confirm that the server output shows different worker thread names.
 
-Expected stage 6 results:
+10. Keep-alive check with one connection:
+    Use a client that can send multiple requests on the same socket and confirm
+    that the connection stays open until Connection: close is used.
+
+Expected stage 7 results:
 - existing files return 200 OK
 - HEAD returns headers only
 - unchanged files return 304 Not Modified
@@ -41,3 +42,4 @@ Expected stage 6 results:
 - forbidden paths return 403 Forbidden
 - malformed or unsupported requests return 400 Bad Request
 - concurrent clients are handled by different threads
+- keep-alive requests reuse the same connection
