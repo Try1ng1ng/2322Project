@@ -4,7 +4,7 @@ This repository contains the coursework project for the COMP2322 Computer Networ
 
 ## Current Status
 
-The project now includes the stage 7 connection-management prototype. At this point, the program can:
+The project now includes the stage 8 logging prototype. At this point, the program can:
 
 - parse command-line host and port arguments
 - create a TCP socket
@@ -18,8 +18,7 @@ The project now includes the stage 7 connection-management prototype. At this po
 - process `If-Modified-Since`
 - handle `Connection: close`
 - handle `Connection: keep-alive`
-
-Logging will be added in a later commit.
+- write one log line per request to `logs/server.log`
 
 ## Project Structure
 
@@ -35,7 +34,8 @@ Logging will be added in a later commit.
 ├─ logs/
 │  └─ server.log
 ├─ tests/
-│  └─ curl_examples.txt
+│  ├─ curl_examples.txt
+│  └─ keep_alive_client.py
 ├─ README.md
 └─ report/
    └─ report_outline.md
@@ -55,7 +55,7 @@ Or specify host and port:
 python server.py --host 127.0.0.1 --port 8080
 ```
 
-## Stage 7 Test Examples
+## Stage 8 Test Examples
 
 Use `curl.exe` in PowerShell to avoid the `curl` alias issue.
 
@@ -66,9 +66,25 @@ curl.exe -I http://127.0.0.1:8080/hello.txt
 curl.exe -v http://127.0.0.1:8080/notfound.txt
 curl.exe --path-as-is -v http://127.0.0.1:8080/../server.py
 curl.exe -v -X POST http://127.0.0.1:8080/
+python .\tests\keep_alive_client.py
 ```
 
-To demonstrate a persistent connection more clearly, use a client that can send two HTTP requests over the same socket and confirm that the server thread handles both requests before the connection closes.
+## Log File
+
+The server writes one line per request to:
+
+```text
+logs/server.log
+```
+
+Each log line includes:
+
+- client IP address
+- access time
+- request method
+- request path
+- HTTP version
+- response status code
 
 ## Notes
 
@@ -76,4 +92,4 @@ To demonstrate a persistent connection more clearly, use a client that can send 
 - Directory listing is disabled and returns `403 Forbidden`.
 - Each client connection is handled by a dedicated worker thread.
 - Existing files include the `Last-Modified` response header.
-- The server now keeps a connection open when the request asks for `keep-alive`.
+- The server keeps a connection open when the request asks for `keep-alive`.

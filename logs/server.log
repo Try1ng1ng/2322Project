@@ -1,1 +1,4 @@
 
+127.0.0.1 | Tue, 14 Apr 2026 11:39:50 GMT | GET /hello.txt HTTP/1.1 | 200
+127.0.0.1 | Tue, 14 Apr 2026 11:39:50 GMT | GET /notfound.txt HTTP/1.1 | 404
+127.0.0.1 | Tue, 14 Apr 2026 11:39:50 GMT | INVALID - - | 400

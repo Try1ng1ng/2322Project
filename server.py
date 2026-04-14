@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 import socket
 import threading
+from datetime import datetime, timezone
 
+from logger_util import write_access_log
 from utils import (
     HttpParseError,
     build_http_response,
@@ -71,6 +73,22 @@ def send_simple_response(
     client_socket.sendall(response)
 
 
+def log_request(
+    client_address: tuple[str, int],
+    request,
+    status_code: int,
+) -> None:
+    access_time = format_http_date(datetime.now(timezone.utc))
+    write_access_log(
+        client_ip=client_address[0],
+        access_time=access_time,
+        method=request.method,
+        path=request.path,
+        version=request.version,
+        status_code=status_code,
+    )
+
+
 def handle_client(client_socket: socket.socket, client_address: tuple[str, int]) -> None:
     # Each worker thread handles one client connection from start to finish.
     print(
@@ -119,6 +137,7 @@ def handle_client(client_socket: socket.socket, client_address: tuple[str, int])
                     request.method,
                     keep_alive,
                 )
+                log_request(client_address, request, 403)
                 print(
                     f"[{threading.current_thread().name}] Forbidden request from "
                     f"{client_address[0]}:{client_address[1]}: {error}"
@@ -138,6 +157,7 @@ def handle_client(client_socket: socket.socket, client_address: tuple[str, int])
                     request.method,
                     keep_alive,
                 )
+                log_request(client_address, request, 403)
                 print(
                     f"[{threading.current_thread().name}] Forbidden directory request: "
                     f"{request.path}"
@@ -157,6 +177,7 @@ def handle_client(client_socket: socket.socket, client_address: tuple[str, int])
                     request.method,
                     keep_alive,
                 )
+                log_request(client_address, request, 404)
                 print(
                     f"[{threading.current_thread().name}] File not found for path "
                     f"{request.path}"
@@ -182,6 +203,7 @@ def handle_client(client_socket: socket.socket, client_address: tuple[str, int])
                         "Content-Length": "0",
                     },
                 )
+                log_request(client_address, request, 304)
                 print(
                     f"[{threading.current_thread().name}] Returned 304 Not Modified for "
                     f"{file_path.name}"
@@ -205,6 +227,7 @@ def handle_client(client_socket: socket.socket, client_address: tuple[str, int])
                     "Last-Modified": last_modified_header,
                 },
             )
+            log_request(client_address, request, 200)
             print(f"[{threading.current_thread().name}] Served file: {file_path.name}")
 
             if not keep_alive:
@@ -218,6 +241,15 @@ def handle_client(client_socket: socket.socket, client_address: tuple[str, int])
             b"400 Bad Request\nThe server could not understand the HTTP request.\n",
             "GET",
             keep_alive=False,
+        )
+        # Use placeholder request fields when parsing failed before a request object existed.
+        write_access_log(
+            client_ip=client_address[0],
+            access_time=format_http_date(datetime.now(timezone.utc)),
+            method="INVALID",
+            path="-",
+            version="-",
+            status_code=400,
         )
         print(
             f"[{threading.current_thread().name}] Bad request from "
