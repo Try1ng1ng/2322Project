@@ -15,6 +15,7 @@ from utils import (
     get_connection_header,
     get_content_type,
     get_last_modified,
+    get_requested_file_name,
     is_not_modified,
     parse_http_request,
     read_requested_file,
@@ -64,6 +65,7 @@ def build_response_bytes(
     reason_phrase: str,
     body: bytes,
     method: str,
+    version: str,
     keep_alive: bool,
     extra_headers: dict[str, str] | None = None,
 ) -> bytes:
@@ -76,23 +78,24 @@ def build_response_bytes(
         reason_phrase=reason_phrase,
         body=body,
         method=method,
+        version=version,
         extra_headers=headers,
     )
 
 
 def log_request(
     client_address: tuple[str, int],
-    request,
-    status_code: int,
+    method: str,
+    requested_file_name: str,
+    response_type: str,
 ) -> None:
     access_time = format_http_date(datetime.now(timezone.utc))
     write_access_log(
         client_ip=client_address[0],
         access_time=access_time,
-        method=request.method,
-        path=request.path,
-        version=request.version,
-        status_code=status_code,
+        method=method,
+        requested_file_name=requested_file_name,
+        response_type=response_type,
     )
 
 
@@ -102,6 +105,7 @@ def process_request(
     result_queue: queue.Queue[RequestResult],
 ) -> None:
     keep_alive = should_keep_alive(request)
+    requested_file_name = get_requested_file_name(request.path)
     print(
         f"[{threading.current_thread().name}] Processing request: "
         f"method={request.method}, path={request.path}, version={request.version}, "
@@ -117,9 +121,10 @@ def process_request(
             "Forbidden",
             b"403 Forbidden\nAccess to the requested resource is denied.\n",
             request.method,
+            request.version,
             keep_alive,
         )
-        log_request(client_address, request, 403)
+        log_request(client_address, request.method, requested_file_name, "403 Forbidden")
         print(
             f"[{threading.current_thread().name}] Forbidden request from "
             f"{client_address[0]}:{client_address[1]}: {error}"
@@ -134,9 +139,10 @@ def process_request(
             "Forbidden",
             b"403 Forbidden\nDirectory access is not allowed.\n",
             request.method,
+            request.version,
             keep_alive,
         )
-        log_request(client_address, request, 403)
+        log_request(client_address, request.method, file_path.name, "403 Forbidden")
         print(
             f"[{threading.current_thread().name}] Forbidden directory request: "
             f"{request.path}"
@@ -151,9 +157,10 @@ def process_request(
             "File Not Found",
             b"404 File Not Found\nThe requested file does not exist.\n",
             request.method,
+            request.version,
             keep_alive,
         )
-        log_request(client_address, request, 404)
+        log_request(client_address, request.method, file_path.name, "404 File Not Found")
         print(
             f"[{threading.current_thread().name}] File not found for path "
             f"{request.path}"
@@ -171,13 +178,14 @@ def process_request(
             "Not Modified",
             b"",
             request.method,
+            request.version,
             keep_alive,
             extra_headers={
                 "Last-Modified": last_modified_header,
                 "Content-Length": "0",
             },
         )
-        log_request(client_address, request, 304)
+        log_request(client_address, request.method, file_path.name, "304 Not Modified")
         print(
             f"[{threading.current_thread().name}] Returned 304 Not Modified for "
             f"{file_path.name}"
@@ -192,6 +200,7 @@ def process_request(
         "OK",
         file_body,
         request.method,
+        request.version,
         keep_alive,
         extra_headers={
             "Content-Type": get_content_type(file_path),
@@ -199,7 +208,7 @@ def process_request(
             "Last-Modified": last_modified_header,
         },
     )
-    log_request(client_address, request, 200)
+    log_request(client_address, request.method, file_path.name, "200 OK")
     print(f"[{threading.current_thread().name}] Served file: {file_path.name}")
     result_queue.put(RequestResult(response=response, status_code=200, keep_alive=keep_alive))
 
@@ -256,6 +265,7 @@ def handle_client(client_socket: socket.socket, client_address: tuple[str, int])
             "Bad Request",
             b"400 Bad Request\nThe server could not understand the HTTP request.\n",
             "GET",
+            "HTTP/1.1",
             keep_alive=False,
         )
         client_socket.sendall(response)
@@ -265,9 +275,8 @@ def handle_client(client_socket: socket.socket, client_address: tuple[str, int])
             client_ip=client_address[0],
             access_time=format_http_date(datetime.now(timezone.utc)),
             method="INVALID",
-            path="-",
-            version="-",
-            status_code=400,
+            requested_file_name="-",
+            response_type="400 Bad Request",
         )
         print(
             f"[{threading.current_thread().name}] Bad request from "

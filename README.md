@@ -72,6 +72,7 @@ After the server starts, open a browser or another terminal and send HTTP reques
     http://127.0.0.1:8080
 
 The server root directory is `www/`. All accessible files are served from that folder.
+The `index.html` page is only a static demonstration page used to verify that the server can correctly return web resources. It is not a separate frontend application.
 
 ## Browser Examples
 
@@ -142,17 +143,17 @@ Each request creates one log line. The log format includes:
 - client IP address
 - access time
 - request method
-- request path
-- HTTP version
-- response status code
+- requested file name
+- response type
 
 Example:
 
-    127.0.0.1 | Mon, 14 Apr 2026 08:30:00 GMT | GET /hello.txt HTTP/1.1 | 200
+    127.0.0.1 | Mon, 14 Apr 2026 08:30:00 GMT | GET hello.txt | 200 OK
 
 ## Notes
 
 - The server only serves files inside `www/`
+- The `index.html` file is a simple static demo page for browser testing and screenshots
 - Directory listing is disabled
 - Path traversal attempts return `403 Forbidden`
 - `HEAD` responses do not include a body
@@ -160,3 +161,4 @@ Example:
 - For PowerShell testing, prefer `curl.exe` instead of `curl`
 - If `server.log` looks empty, stop the running server and restart it before testing again
 - The server uses a connection-handling thread plus one request worker thread for each HTTP request on that connection
+- The response line matches the client's HTTP version for supported `HTTP/1.0` and `HTTP/1.1` requests

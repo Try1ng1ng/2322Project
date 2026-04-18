@@ -153,6 +153,20 @@ def resolve_request_path(request_path: str) -> Path:
     return target_path
 
 
+def get_requested_file_name(request_path: str) -> str:
+    clean_path = request_path.split("?", 1)[0].split("#", 1)[0]
+    decoded_path = unquote(clean_path)
+
+    if decoded_path == "/":
+        return "index.html"
+
+    stripped_path = decoded_path.rstrip("/")
+    if not stripped_path:
+        return "index.html"
+
+    return Path(stripped_path).name or "index.html"
+
+
 def get_content_type(file_path: Path) -> str:
     # Fall back to a binary type when Python cannot guess the extension.
     content_type, _ = mimetypes.guess_type(file_path.name)
@@ -197,6 +211,7 @@ def build_http_response(
     reason_phrase: str,
     body: bytes = b"",
     method: str = "GET",
+    version: str = "HTTP/1.1",
     extra_headers: dict[str, str] | None = None,
 ) -> bytes:
     # Build the minimum headers needed for this project stage.
@@ -211,7 +226,7 @@ def build_http_response(
     if extra_headers:
         headers.update(extra_headers)
 
-    response_lines = [f"HTTP/1.1 {status_code} {reason_phrase}"]
+    response_lines = [f"{version} {status_code} {reason_phrase}"]
     response_lines.extend(f"{key}: {value}" for key, value in headers.items())
     response_head = "\r\n".join(response_lines).encode("iso-8859-1") + b"\r\n\r\n"
 

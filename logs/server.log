@@ -1,22 +1,12 @@
-
-127.0.0.1 | Tue, 14 Apr 2026 11:39:50 GMT | GET /hello.txt HTTP/1.1 | 200
-127.0.0.1 | Tue, 14 Apr 2026 11:39:50 GMT | GET /notfound.txt HTTP/1.1 | 404
-127.0.0.1 | Tue, 14 Apr 2026 11:39:50 GMT | INVALID - - | 400
-127.0.0.1 | Thu, 16 Apr 2026 12:42:47 GMT | GET /hello.txt HTTP/1.1 | 200
-127.0.0.1 | Thu, 16 Apr 2026 12:42:48 GMT | HEAD /hello.txt HTTP/1.1 | 200
-127.0.0.1 | Thu, 16 Apr 2026 12:42:48 GMT | GET /notfound.txt HTTP/1.1 | 404
-127.0.0.1 | Thu, 16 Apr 2026 12:42:48 GMT | INVALID - - | 400
-127.0.0.1 | Thu, 16 Apr 2026 12:42:48 GMT | GET /../server.py HTTP/1.1 | 403
-127.0.0.1 | Thu, 16 Apr 2026 12:42:53 GMT | HEAD /hello.txt HTTP/1.1 | 200
-127.0.0.1 | Thu, 16 Apr 2026 12:43:21 GMT | GET /hello.txt HTTP/1.1 | 304
-127.0.0.1 | Thu, 16 Apr 2026 12:44:02 GMT | GET /hello.txt HTTP/1.1 | 200
-127.0.0.1 | Thu, 16 Apr 2026 12:44:02 GMT | GET /index.html HTTP/1.1 | 200
-127.0.0.1 | Thu, 16 Apr 2026 12:50:15 GMT | GET / HTTP/1.1 | 200
-127.0.0.1 | Thu, 16 Apr 2026 12:50:15 GMT | GET /hello.txt HTTP/1.1 | 200
-127.0.0.1 | Thu, 16 Apr 2026 12:50:15 GMT | HEAD /hello.txt HTTP/1.1 | 200
-127.0.0.1 | Thu, 16 Apr 2026 12:50:15 GMT | GET /image.jpg HTTP/1.1 | 200
-127.0.0.1 | Thu, 16 Apr 2026 12:50:15 GMT | GET /notfound.txt HTTP/1.1 | 404
-127.0.0.1 | Thu, 16 Apr 2026 12:50:15 GMT | GET /../server.py HTTP/1.1 | 403
-127.0.0.1 | Thu, 16 Apr 2026 12:50:15 GMT | INVALID - - | 400
-127.0.0.1 | Thu, 16 Apr 2026 12:50:16 GMT | GET /hello.txt HTTP/1.1 | 200
-127.0.0.1 | Thu, 16 Apr 2026 12:50:16 GMT | GET /index.html HTTP/1.1 | 200
+127.0.0.1 | Sat, 18 Apr 2026 10:20:39 GMT | GET index.html | 200 OK
+127.0.0.1 | Sat, 18 Apr 2026 10:20:39 GMT | GET hello.txt | 200 OK
+127.0.0.1 | Sat, 18 Apr 2026 10:20:39 GMT | HEAD hello.txt | 200 OK
+127.0.0.1 | Sat, 18 Apr 2026 10:20:39 GMT | GET image.jpg | 200 OK
+127.0.0.1 | Sat, 18 Apr 2026 10:20:40 GMT | GET notfound.txt | 404 File Not Found
+127.0.0.1 | Sat, 18 Apr 2026 10:20:40 GMT | GET server.py | 403 Forbidden
+127.0.0.1 | Sat, 18 Apr 2026 10:20:40 GMT | INVALID - | 400 Bad Request
+127.0.0.1 | Sat, 18 Apr 2026 10:20:40 GMT | GET hello.txt | 304 Not Modified
+127.0.0.1 | Sat, 18 Apr 2026 10:20:40 GMT | GET hello.txt | 200 OK
+127.0.0.1 | Sat, 18 Apr 2026 10:20:41 GMT | GET hello.txt | 200 OK
+127.0.0.1 | Sat, 18 Apr 2026 10:20:41 GMT | GET hello.txt | 200 OK
+127.0.0.1 | Sat, 18 Apr 2026 10:20:41 GMT | GET hello.txt | 200 OK
